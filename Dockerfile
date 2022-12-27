@@ -1,9 +1,6 @@
-FROM python:latest
+FROM stablebaselines/rl-baselines3-zoo@sha256:46976041aaa4a5252eae1aebb4533ab2e2bbe449512ff290a37f8eddc1f1c56f
 
-RUN mkdir /16831_project
-ADD . /16831_project
+RUN mkdir /project
+ADD . /project
 
-RUN apt-install sudo -y
-RUN apt-get update && sudo apt install ffmpeg -y
-
-RUN pip install -r /16831_project/requirements.txt
+RUN pip install -r /project/requirements.txt

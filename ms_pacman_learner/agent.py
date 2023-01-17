@@ -28,21 +28,56 @@ ACTION_MAP = {
 def parse() -> dict:
     """Parses CLI arguments for script parameters"""
 
+    # Set-up top-level parser
     parser = argparse.ArgumentParser()
+    parser.add_argument('-v', '--verbose', action='store_true',
+        help="Indicator to include verbose logging")
 
-    parser.add_argument('--max_steps', type=int, default=10000,
+    # Set-up subparsers
+    subparser = parser.add_subparsers(dest='command')
+    subparser.required = True
+
+    # Subparser to train a model using any (one) of the possible modifications
+    train = subparser.add_parser('train')
+    train.add_argument('--model', type=str, default='DQN',
+        choices=('DQN','PPO'),
+        help='''Model algorithm to use''')
+    train.add_argument('--experiment', type=str, default='baseline', nargs='+',
+        choices=('baseline','grayscale','longevity_rewards','bonus_scaling',
+        'noop','action_space_reduction'),
+        help='''Specify the experiment(s) to run. Note that some combinations
+        of experiments may not make sense, i.e. longevity with bonus scaling
+        would result in just longevity being implemented, because bonuses are
+        irrelevant under that scenario''')
+    train.add_argument('--bonus-scalar', type=int, default=1,
+        help='''Scalar to be applied to bonus rewards during training. Includes
+        power orbs, fruits, and ghosts, but does not include standard orbs.
+        Requires experiment "bonus_scaling" to be specified.''')
+    train.add_argument('--noop-frames', type=int, default=0,
+        help='''Number of frames to execute only NOOP at the beginning of
+        training. Due to the jingle at the start of each simulation, this
+        value is added to 265 to produce NOOP commands during playable
+        frames. Requires experiment "noop" to be specified.''')
+
+    # Subparser used to evaluate an already trained and saved model. The
+    # exception is the random action model, which does not require training
+    eval = subparser.add_parser('eval')
+    eval.add_argument('--max_steps', type=int, default=10000,
         help="Max number of steps the agent will take throughout each rollout")
-    parser.add_argument('--n_rollout', type=int, default=1,
+    eval.add_argument('--n_rollout', type=int, default=1,
         help="Number of rollouts to generate")
-    parser.add_argument('--n_traj', type=int, default=20,
+    eval.add_argument('--n_traj', type=int, default=20,
         help="Number of trajectories per rollout")
-    parser.add_argument('--logging_base_path', type=str, default='../output',
+    eval.add_argument('--logging_base_path', type=str, default='../output',
         help="Directory in which to create logging subfolders")
-    parser.add_argument('--policy_type', type=str, default='random',
+    eval.add_argument('--policy_type', type=str, default='random',
         choices=('random','dqn','ppo'),
         help="Type of policy to use")
-    parser.add_argument('--policy_file', type=str, default='',
+    eval.add_argument('--policy_file', type=str, default='',
         help="Saved model .zip file to use for determining the next action")
+
+    # Subparser to generate plots of already evaluated models
+    subparser.add_parser('plot')
 
     args = parser.parse_args()
 
@@ -95,6 +130,21 @@ def main():
     """Runs the main simulation. Captures metrics, images, and video of the agent"""
 
     params = parse()
+
+    import ipdb; ipdb.set_trace()
+
+    if params['command'] == 'train':
+        pass
+
+    elif params['command'] == 'eval':
+        pass
+
+    elif params['command'] == 'plot':
+        pass
+
+    else:
+        raise "Invalid command entered!"
+
     policy_type = params['policy_type']
     policy_file = params['policy_file']
     n_traj = params['n_traj']

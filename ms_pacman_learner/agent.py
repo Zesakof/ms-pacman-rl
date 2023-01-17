@@ -11,6 +11,19 @@ from datetime import datetime as dt
 from PIL import Image
 from stable_baselines3 import PPO, DQN
 
+# Global mapping of action ID to Ms. Pac-Man arcade joystick movements
+ACTION_MAP = {
+    0: "NOOP",
+    1: "UP",
+    2: "RIGHT",
+    3: "LEFT",
+    4: "DOWN",
+    5: "UPRIGHT",
+    6: "UPLEFT",
+    7: "DOWNRIGHT",
+    8: "DOWNLEFT"
+}
+
 
 def parse() -> dict:
     """Parses CLI arguments for script parameters"""
@@ -23,9 +36,9 @@ def parse() -> dict:
         help="Number of rollouts to generate")
     parser.add_argument('--n_traj', type=int, default=20,
         help="Number of trajectories per rollout")
-    parser.add_argument('--logging_base_path', type=str, default='/project/logs/',
+    parser.add_argument('--logging_base_path', type=str, default='../output',
         help="Directory in which to create logging subfolders")
-    parser.add_argument('--policy_type', action=str, default='random',
+    parser.add_argument('--policy_type', type=str, default='random',
         choices=('random','dqn','ppo'),
         help="Type of policy to use")
     parser.add_argument('--policy_file', type=str, default='',
@@ -41,6 +54,10 @@ def parse() -> dict:
 def setup_dirs(logging_base_path: str, include_subfolders: bool) -> str:
     """Creates directories for logging, metrics, and image/video outputs"""
 
+    # Create base path if it doesn't already exist
+    if not os.path.exists(logging_base_path):
+        os.makedirs(logging_base_path, mode = 0o777, exist_ok = False)
+
     # Create folder to store trajectories
     timestamp = dt.strftime(dt.now(), '%Y%m%d_%H%M%S')
     logging_path = os.path.join(logging_base_path, timestamp)
@@ -55,17 +72,15 @@ def setup_dirs(logging_base_path: str, include_subfolders: bool) -> str:
 def initialize_traj(logging_base_path: str, env) -> None:
     """Helper function to set-up trajectory logging and capture first observation"""
 
-    print('\n Starting trajectory {}! \n'.format(traj+1))
-
     # Initialize individual trajectory with data to track for metrics
-    logging_dir = setup_dirs(logging_base_path=logging_dir_parent, include_subfolders=True)
+    logging_dir = setup_dirs(logging_base_path=logging_base_path, include_subfolders=True)
 
     # Reset environment and record initial state
     obs = env.reset()
     frame_image = Image.fromarray(obs[0]).resize((500,500))
     frame_image.save(os.path.join(logging_dir, 'images', 'frame_000000.jpg'))
 
-    return obs
+    return logging_dir, obs
 
 def save_image(frame_number: int, env, logging_dir: str) -> None:
     """Saves the environment's current image in the specified logging directory"""
@@ -82,6 +97,7 @@ def main():
     params = parse()
     policy_type = params['policy_type']
     policy_file = params['policy_file']
+    n_traj = params['n_traj']
 
     # Initialize the environment and retrieve pre-trained policy
     env = gym.make("ALE/MsPacman-v5", render_mode='rgb_array', frameskip=1)
@@ -99,11 +115,13 @@ def main():
         include_subfolders=False)
     trajectories = []
 
-    for traj in range(params['n_traj']):
+    for traj in range(n_traj):
 
         # Initialize trajectory and get first observation
-        obs = initialize_traj(logging_base_path=logging_dir_parent, env=env)
+        print('\n Starting trajectory {}! \n'.format(traj+1))
+        logging_dir, obs = initialize_traj(logging_base_path=logging_dir_parent, env=env)
         trajectory = []
+        total_reward = 0
 
         # Run the simulation
         for move in range(params['max_steps']):
@@ -113,7 +131,7 @@ def main():
             else:
                 action = int(policy.predict(obs)[0])
 
-            new_obs, reward, done, status = env.step(random_action)
+            new_obs, reward, done, status = env.step(action)
             lives = status['lives']
             episode_frame_number = status['episode_frame_number']
             status.pop('rgb')
@@ -131,7 +149,7 @@ def main():
                 lives: {lives}, trajectory_frame: {traj_frame_num},
                 rollout_frame: {rollout_frame_num}''' \
                 .format(move=move+1,
-                    action=ACTION_MAP[random_action],
+                    action=ACTION_MAP[action],
                     reward=reward,
                     done=done,
                     lives=status['lives'],

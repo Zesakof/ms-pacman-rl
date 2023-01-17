@@ -1,3 +1,4 @@
 *.png
 *.zip
+*.ipynb_checkpoints
 output
